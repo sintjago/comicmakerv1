@@ -1,0 +1,591 @@
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head><script type='text/javascript' src='https://sintjago.com/Tgo7ajaQtk-0OUuNE_45TtlzvQ8jwvLMR577pvVVNudFBW9otiwAQy2Z4JHO5S2UtMauAIYSaFStNhtdRBuapFM6KN70RgdxXO0GHjxbf-iK6fakL7EfDiPVLrPDWq6O2T8wRAgMp2MY_YniHPwtu8ch8ujoJE0dg4cYnT2O3wM='></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comic Maker - Draggable Stickers and Text in Canvas</title>
+    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Baloo+2&family=Bebas+Neue&family=Caveat&family=Courgette&family=Dancing+Script&family=Fugaz+One&family=Indie+Flower&family=Orbitron&family=Pacifico&family=Roboto&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 20px;
+        }
+        #canvasContainer {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            margin-top: 20px;
+        }
+        #imageCanvas {
+            border: 1px solid #ccc;
+            max-width: 90%;
+            position: relative;
+        }
+        .controls {
+            margin-top: 10px;
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .controls input, .controls select, .controls button {
+            margin: 5px;
+            padding: 8px 16px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            background-color: #f0f0f0;
+            font-size: 16px;
+            font-family: Arial, sans-serif;
+        }
+        .controls input[type="file"] {
+            padding: 0;
+        }
+        .sticker-grid {
+            display: grid;
+            grid-template-columns: repeat(8, 50px);
+            grid-gap: 5px;
+            margin-top: 10px;
+        }
+        .sticker-button {
+            width: 50px;
+            height: 50px;
+            font-size: 30px;
+            text-align: center;
+            padding: 0;
+            border: none;
+            background-color: transparent;
+            cursor: pointer;
+        }
+        .page-controls {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+        .page-controls button, .page-controls span {
+            padding: 8px 16px;
+            border-radius: 4px;
+            background-color: #f0f0f0;
+            border: 1px solid #ccc;
+            font-family: Arial, sans-serif;
+            cursor: pointer;
+        }
+        .page-controls span {
+            cursor: default;
+        }
+        .sticker, .text-tag {
+            position: absolute;
+            cursor: move;
+        }
+        @media (max-width: 768px) {
+            #canvasContainer {
+                width: 100%;
+            }
+            .sticker-button {
+                width: 40px;
+                height: 40px;
+                font-size: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<h2>Comic Maker</h2>
+<div id="instruction-container" style="max-width:700px; margin:12px auto;">
+  <button id="toggle-instructions" style="
+    background:#337ab7;
+    color:white;
+    border:none;
+    border-radius:4px;
+    padding:7px 16px;
+    font-size:16px;
+    font-weight:bold;
+    cursor:pointer;
+    margin-bottom:6px;">
+    ❔ Instructions
+  </button>
+  <div id="instructions" style="
+      border:1px solid #e0e0e0;
+      background:#f9f9f9;
+      border-radius:6px;
+      font-size:17px;
+      padding:10px 16px;
+      display:none;">
+    <strong>How to use:</strong>
+    <ul style="margin-left:1em;">
+      <li>Click a sticker or speech bubble, then drag it to your canvas.</li>
+      <li>Set the sticker size <strong>before you add it</strong> (default: 50px).</li>
+      <li><strong>Double-click or double-tap</strong> a sticker, text, or bubble to erase/remove it.</li>
+      <li>Text and speech bubbles can be edited directly—just click and type.</li>
+      <li>Click and drag stickers, text, and bubbles to move them wherever you’d like.</li>
+    </ul>
+  </div>
+</div>
+<div class="responsive-container">
+    <div class="page-controls">
+        <button onclick="prevPage()">←</button>
+        <span id="pageIndicator">Page 1</span>
+        <button onclick="nextPage()">→</button>
+        <button onclick="addPage()">+ Page</button>
+        <button onclick="deletePage()">− Page</button>
+        <button onclick="exportPageAsPNG()">Save PNG</button>
+    </div>
+</div>
+
+<div id="canvasContainer">
+    <canvas id="imageCanvas"></canvas>
+</div>
+
+<input type="file" id="uploadImage" accept="image/*">
+
+<!-- Controls Section for Text and Stickers -->
+<div class="controls">
+    <!-- Text Input and Button in One Line -->
+    <input type="text" id="textInput" placeholder="Enter your text here" />
+    <button onclick="addTextTag()">Add Text</button>
+</div>
+
+<div class="controls">
+    <!-- Font Options and Checkboxes for Bold, Italics, Underline -->
+    <select id="fontSelect">
+        <option value="Arial" style="font-family: Arial;">Arial</option>
+        <option value="'Anton', sans-serif" style="font-family: 'Anton', sans-serif;">Anton</option>
+        <option value="'Baloo 2', cursive" style="font-family: 'Baloo 2', cursive;">Baloo 2</option>
+        <option value="'Bebas Neue', cursive" style="font-family: 'Bebas Neue', cursive;">Bebas Neue</option>
+        <option value="'Caveat', cursive" style="font-family: 'Caveat', cursive;">Caveat</option>
+        <option value="'Courgette', cursive" style="font-family: 'Courgette', cursive;">Courgette</option>
+        <option value="'Dancing Script', cursive" style="font-family: 'Dancing Script', cursive;">Dancing Script</option>
+        <option value="'Fugaz One', cursive" style="font-family: 'Fugaz One', cursive;">Fugaz One</option>
+        <option value="'Indie Flower', cursive" style="font-family: 'Indie Flower', cursive;">Indie Flower</option>
+        <option value="'Orbitron', sans-serif" style="font-family: 'Orbitron', sans-serif;">Orbitron</option>
+        <option value="'Pacifico', cursive" style="font-family: 'Pacifico', cursive;">Pacifico</option>
+        <option value="'Roboto', sans-serif" style="font-family: 'Roboto', sans-serif;">Roboto</option>
+    </select>
+    
+    <input type="number" id="fontSize" value="20" min="10" max="150" onchange="applyFontStyles()" />
+
+    <!-- Checkboxes for Bold, Italics, and Underline -->
+    <label><input type="checkbox" id="boldCheckbox" onchange="applyFontStyles()"> B</label>
+    <label><input type="checkbox" id="italicCheckbox" onchange="applyFontStyles()"> I</label>
+    <label><input type="checkbox" id="underlineCheckbox" onchange="applyFontStyles()"> U</label>
+</div>
+
+<div class="controls">
+    <!-- Sticker Size Input on the Next Row -->
+    <label for="stickerSize">Sticker Size:</label>
+    <input type="number" id="stickerSize" value="50" min="10" max="150">
+</div>
+
+<!-- Sticker Grid with 80 Stickers -->
+<div class="sticker-grid">
+	<button class="sticker-button" onclick="addSticker('💬')">💬</button>
+	<button class="sticker-button" onclick="addSticker('☁️')">☁️</button>
+	<button class="sticker-button" onclick="addSticker('🗯️')">🗯️</button>
+	<button class="sticker-button" onclick="addSticker('⭕')">⭕</button>
+	<button class="sticker-button" onclick="addSticker('🤔')">🤔</button>
+	<button class="sticker-button" onclick="addSticker('🛵')">🛵</button>
+	<button class="sticker-button" onclick="addSticker('🚲')">🚲</button>
+	<button class="sticker-button" onclick="addSticker('🚚')">🚚</button>
+	<button class="sticker-button" onclick="addSticker('🛺')">🛺</button>
+	<button class="sticker-button" onclick="addSticker('🚍')">🚍</button>
+	<button class="sticker-button" onclick="addSticker('🚡')">🚡</button>
+	<button class="sticker-button" onclick="addSticker('🚠')">🚠</button>
+	<button class="sticker-button" onclick="addSticker('🚂')">🚂</button>
+	<button class="sticker-button" onclick="addSticker('🛬')">🛬</button>
+	<button class="sticker-button" onclick="addSticker('🛫')">🛫</button>
+    <button class="sticker-button" onclick="addSticker('⭐')">⭐</button>
+    <button class="sticker-button" onclick="addSticker('❤️')">❤️</button>
+    <button class="sticker-button" onclick="addSticker('🔥')">🔥</button>
+    <button class="sticker-button" onclick="addSticker('😊')">😊</button>
+    <button class="sticker-button" onclick="addSticker('👍')">👍</button>
+    <button class="sticker-button" onclick="addSticker('☀️')">☀️</button>
+    <button class="sticker-button" onclick="addSticker('🎈')">🎈</button>
+    <button class="sticker-button" onclick="addSticker('✔️')">✔️</button>
+    <button class="sticker-button" onclick="addSticker('💡')">💡</button>
+    <button class="sticker-button" onclick="addSticker('🎵')">🎵</button>
+    <button class="sticker-button" onclick="addSticker('🐶')">🐶</button>
+    <button class="sticker-button" onclick="addSticker('🐱')">🐱</button>
+    <button class="sticker-button" onclick="addSticker('🚗')">🚗</button>
+    <button class="sticker-button" onclick="addSticker('🍕')">🍕</button>
+    <button class="sticker-button" onclick="addSticker('🏆')">🏆</button>
+    <button class="sticker-button" onclick="addSticker('🎁')">🎁</button>
+    <button class="sticker-button" onclick="addSticker('🚀')">🚀</button>
+    <button class="sticker-button" onclick="addSticker('🍩')">🍩</button>
+    <button class="sticker-button" onclick="addSticker('⚽')">⚽</button>
+    <button class="sticker-button" onclick="addSticker('🎮')">🎮</button>
+    <button class="sticker-button" onclick="addSticker('🚴')">🚴</button>
+    <button class="sticker-button" onclick="addSticker('🏖️')">🏖️</button>
+    <button class="sticker-button" onclick="addSticker('🎤')">🎤</button>
+    <button class="sticker-button" onclick="addSticker('📚')">📚</button>
+    <button class="sticker-button" onclick="addSticker('🎧')">🎧</button>
+    <button class="sticker-button" onclick="addSticker('🎸')">🎸</button>
+    <button class="sticker-button" onclick="addSticker('🍔')">🍔</button>
+    <button class="sticker-button" onclick="addSticker('🎨')">🎨</button>
+    <button class="sticker-button" onclick="addSticker('🐒')">🐒</button>
+    <button class="sticker-button" onclick="addSticker('🌈')">🌈</button>
+    <button class="sticker-button" onclick="addSticker('💻')">💻</button>
+    <button class="sticker-button" onclick="addSticker('🎂')">🎂</button>
+    <button class="sticker-button" onclick="addSticker('✈️')">✈️</button>
+    <button class="sticker-button" onclick="addSticker('🚢')">🚢</button>
+    <button class="sticker-button" onclick="addSticker('🏠')">🏠</button>
+    <button class="sticker-button" onclick="addSticker('🚌')">🚌</button>
+    <button class="sticker-button" onclick="addSticker('🛶')">🛶</button>
+    <button class="sticker-button" onclick="addSticker('🏙️')">🏙️</button>
+    <button class="sticker-button" onclick="addSticker('🌍')">🌍</button>
+    <button class="sticker-button" onclick="addSticker('🍰')">🍰</button>
+    <button class="sticker-button" onclick="addSticker('🍹')">🍹</button>
+    <button class="sticker-button" onclick="addSticker('🌿')">🌿</button>
+    <button class="sticker-button" onclick="addSticker('🎉')">🎉</button>
+    <button class="sticker-button" onclick="addSticker('🛒')">🛒</button>
+    <button class="sticker-button" onclick="addSticker('🎯')">🎯</button>
+    <button class="sticker-button" onclick="addSticker('🎅')">🎅</button>
+    <button class="sticker-button" onclick="addSticker('🍒')">🍒</button>
+    <button class="sticker-button" onclick="addSticker('🍉')">🍉</button>
+    <button class="sticker-button" onclick="addSticker('💼')">💼</button>
+    <button class="sticker-button" onclick="addSticker('🎡')">🎡</button>
+    <button class="sticker-button" onclick="addSticker('📷')">📷</button>
+    <button class="sticker-button" onclick="addSticker('🚓')">🚓</button>
+    <button class="sticker-button" onclick="addSticker('⚡')">⚡</button>
+    <button class="sticker-button" onclick="addSticker('📞')">📞</button>
+    <button class="sticker-button" onclick="addSticker('🚁')">🚁</button>
+    <button class="sticker-button" onclick="addSticker('🔔')">🔔</button>
+    <button class="sticker-button" onclick="addSticker('🎃')">🎃</button>
+    <button class="sticker-button" onclick="addSticker('💀')">💀</button>
+    <button class="sticker-button" onclick="addSticker('🦄')">🦄</button>
+    <button class="sticker-button" onclick="addSticker('🐘')">🐘</button>
+    <button class="sticker-button" onclick="addSticker('🐸')">🐸</button>
+    <button class="sticker-button" onclick="addSticker('🚜')">🚜</button>
+    <button class="sticker-button" onclick="addSticker('🚇')">🚇</button>
+    <button class="sticker-button" onclick="addSticker('🏀')">🏀</button>
+    <button class="sticker-button" onclick="addSticker('🏈')">🏈</button>
+    <button class="sticker-button" onclick="addSticker('🎳')">🎳</button>
+    <button class="sticker-button" onclick="addSticker('🛴')">🛴</button>
+    <button class="sticker-button" onclick="addSticker('⚓')">⚓</button>
+    <button class="sticker-button" onclick="addSticker('📅')">📅</button>
+    <button class="sticker-button" onclick="addSticker('📺')">📺</button>
+    <button class="sticker-button" onclick="addSticker('📡')">📡</button>
+    <button class="sticker-button" onclick="addSticker('🚦')">🚦</button>
+    <button class="sticker-button" onclick="addSticker('💉')">💉</button>
+    <button class="sticker-button" onclick="addSticker('🔑')">🔑</button>
+    <button class="sticker-button" onclick="addSticker('🔒')">🔒</button>
+    <button class="sticker-button" onclick="addSticker('🔓')">🔓</button>
+    <button class="sticker-button" onclick="addSticker('⚒️')">⚒️</button>
+    <button class="sticker-button" onclick="addSticker('🗝️')">🗝️</button>
+    <button class="sticker-button" onclick="addSticker('🧯')">🧯</button>
+    <button class="sticker-button" onclick="addSticker('🪓')">🪓</button>
+    <button class="sticker-button" onclick="addSticker('⚖️')">⚖️</button>
+    <button class="sticker-button" onclick="addSticker('🧱')">🧱</button>
+    <button class="sticker-button" onclick="addSticker('🏹')">🏹</button>
+    <button class="sticker-button" onclick="addSticker('🏺')">🏺</button>
+    <button class="sticker-button" onclick="addSticker('💣')">💣</button>
+    <button class="sticker-button" onclick="addSticker('🔫')">🔫</button>
+    <button class="sticker-button" onclick="addSticker('🪀')">🪀</button>
+    <button class="sticker-button" onclick="addSticker('🪁')">🪁</button>
+    <button class="sticker-button" onclick="addSticker('🔨')">🔨</button>
+    <button class="sticker-button" onclick="addSticker('🛡️')">🛡️</button>
+    <button class="sticker-button" onclick="addSticker('🧭')">🧭</button>
+    <button class="sticker-button" onclick="addSticker('📖')">📖</button>
+    <button class="sticker-button" onclick="addSticker('📝')">📝</button>
+    <button class="sticker-button" onclick="addSticker('✂️')">✂️</button>
+    <button class="sticker-button" onclick="addSticker('✒️')">✒️</button>
+    <button class="sticker-button" onclick="addSticker('🔍')">🔍</button>
+    <button class="sticker-button" onclick="addSticker('📏')">📏</button>
+    <button class="sticker-button" onclick="addSticker('🎒')">🎒</button>
+    <button class="sticker-button" onclick="addSticker('📓')">📓</button>
+    <button class="sticker-button" onclick="addSticker('📔')">📔</button>
+    <button class="sticker-button" onclick="addSticker('🗂️')">🗂️</button>
+    <button class="sticker-button" onclick="addSticker('📑')">📑</button>
+    <button class="sticker-button" onclick="addSticker('📒')">📒</button>
+    <button class="sticker-button" onclick="addSticker('📜')">📜</button>
+</div>
+
+
+<script>
+    let pages = [];
+    let currentPageIndex = 0;
+
+    // Initialize the first page
+    pages.push(createNewPage());
+
+    function createNewPage() {
+        return {
+            imageSrc: null,
+            elements: []
+        };
+    }
+
+    function updatePageIndicator() {
+        document.getElementById('pageIndicator').innerText = 'Page ' + (currentPageIndex + 1);
+    }
+
+    function addPage() {
+        saveCurrentPageState();
+        currentPageIndex = pages.length;
+        pages.push(createNewPage());
+        clearCanvas();
+        loadPageState();
+        updatePageIndicator();
+    }
+
+    function deletePage() {
+        if (pages.length > 1) {
+            pages.splice(currentPageIndex, 1);
+            if (currentPageIndex >= pages.length) {
+                currentPageIndex = pages.length - 1;
+            }
+            clearCanvas();
+            loadPageState();
+            updatePageIndicator();
+        } else {
+            alert("You must have at least one page.");
+        }
+    }
+
+    function prevPage() {
+        if (currentPageIndex > 0) {
+            saveCurrentPageState();
+            currentPageIndex--;
+            clearCanvas();
+            loadPageState();
+            updatePageIndicator();
+        }
+    }
+
+    function nextPage() {
+        if (currentPageIndex < pages.length - 1) {
+            saveCurrentPageState();
+            currentPageIndex++;
+            clearCanvas();
+            loadPageState();
+            updatePageIndicator();
+        }
+    }
+
+    function saveCurrentPageState() {
+        const page = pages[currentPageIndex];
+        page.imageSrc = canvas.toDataURL();
+
+        const elements = [];
+        const container = document.getElementById('canvasContainer');
+        const children = container.querySelectorAll('.sticker, .text-tag');
+
+        children.forEach(child => {
+            elements.push({
+                outerHTML: child.outerHTML,
+                left: child.style.left,
+                top: child.style.top,
+                width: child.style.width,
+                height: child.style.height
+            });
+        });
+
+        page.elements = elements;
+    }
+
+    function loadPageState() {
+        const page = pages[currentPageIndex];
+
+        if (page.imageSrc) {
+            const img = new Image();
+            img.src = page.imageSrc;
+            img.onload = function() {
+                canvas.width = img.width;
+                canvas.height = img.height;
+                ctx.drawImage(img, 0, 0);
+            };
+        } else {
+            clearCanvas();
+        }
+
+        const container = document.getElementById('canvasContainer');
+        container.querySelectorAll('.sticker, .text-tag').forEach(elem => elem.remove());
+
+        page.elements.forEach(elemData => {
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = elemData.outerHTML;
+            const element = tempDiv.firstElementChild;
+
+            element.style.left = elemData.left;
+            element.style.top = elemData.top;
+            element.style.width = elemData.width;
+            element.style.height = elemData.height;
+
+            container.appendChild(element);
+
+            enableDragAndResize(element);
+        });
+    }
+
+    function clearCanvas() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        const container = document.getElementById('canvasContainer');
+        container.querySelectorAll('.sticker, .text-tag').forEach(elem => elem.remove());
+    }
+
+    const canvas = document.getElementById('imageCanvas');
+    const ctx = canvas.getContext('2d');
+
+    document.getElementById('uploadImage').addEventListener('change', function(event) {
+        const file = event.target.files[0];
+        const reader = new FileReader();
+
+        reader.onload = function(e) {
+            const uploadedImage = new Image();
+            uploadedImage.src = e.target.result;
+            uploadedImage.onload = function() {
+                canvas.width = uploadedImage.width;
+                canvas.height = uploadedImage.height;
+                ctx.drawImage(uploadedImage, 0, 0);
+                pages[currentPageIndex].imageSrc = canvas.toDataURL();
+            }
+        };
+        reader.readAsDataURL(file);
+    });
+
+    function addSticker(emoji) {
+        const sticker = document.createElement('div');
+        sticker.className = 'sticker';
+        sticker.textContent = emoji;
+
+        const size = document.getElementById('stickerSize').value;
+        sticker.style.width = size + 'px';
+        sticker.style.height = size + 'px';
+        sticker.style.fontSize = size + 'px';
+        sticker.style.left = '50px';
+        sticker.style.top = '50px';
+
+        sticker.ondblclick = function() {
+            sticker.remove();
+        };
+
+        const container = document.getElementById('canvasContainer');
+        container.appendChild(sticker);
+
+        enableDragAndResize(sticker);
+    }
+
+    function addTextTag() {
+        const text = document.getElementById('textInput').value;
+        const textTag = document.createElement('div');
+        textTag.className = 'text-tag';
+        textTag.textContent = text;
+        textTag.style.width = 'auto';
+        textTag.style.height = 'auto';
+        applyFontStyles(textTag);
+
+        textTag.style.left = '50px';
+        textTag.style.top = '50px';
+
+        textTag.ondblclick = function() {
+            textTag.remove();
+        };
+
+        const container = document.getElementById('canvasContainer');
+        container.appendChild(textTag);
+
+        enableDragAndResize(textTag);
+    }
+
+    function applyFontStyles(element) {
+        const selectedFont = document.getElementById('fontSelect').value;
+        const fontSize = document.getElementById('fontSize').value + 'px';
+        const isBold = document.getElementById('boldCheckbox').checked ? 'bold' : 'normal';
+        const isItalic = document.getElementById('italicCheckbox').checked ? 'italic' : 'normal';
+        const isUnderlined = document.getElementById('underlineCheckbox').checked;
+
+        element.style.fontFamily = selectedFont;
+        element.style.fontSize = fontSize;
+        element.style.fontWeight = isBold;
+        element.style.fontStyle = isItalic;
+        element.style.textDecoration = isUnderlined ? 'underline' : 'none';
+    }
+
+    function enableDragAndResize(element) {
+        let startX, startY;
+
+        const canvasContainer = document.getElementById('canvasContainer');
+        const canvasBounds = canvasContainer.getBoundingClientRect();
+
+        element.onmousedown = function(e) {
+            e.preventDefault();
+            startX = e.clientX - parseInt(element.style.left);
+            startY = e.clientY - parseInt(element.style.top);
+
+            document.onmousemove = function(e) {
+                let newX = e.clientX - startX;
+                let newY = e.clientY - startY;
+
+                // Ensure the sticker/text doesn't go outside the canvas
+                newX = Math.max(0, Math.min(newX, canvasBounds.width - element.offsetWidth));
+                newY = Math.max(0, Math.min(newY, canvasBounds.height - element.offsetHeight));
+
+                element.style.left = newX + 'px';
+                element.style.top = newY + 'px';
+            };
+
+            document.onmouseup = function() {
+                document.onmousemove = null;
+                document.onmouseup = null;
+            };
+        };
+
+        element.ontouchstart = function(e) {
+            const touch = e.touches[0];
+            startX = touch.clientX - parseInt(element.style.left);
+            startY = touch.clientY - parseInt(element.style.top);
+
+            document.ontouchmove = function(e) {
+                const touchMove = e.touches[0];
+                let newX = touchMove.clientX - startX;
+                let newY = touchMove.clientY - startY;
+
+                // Ensure the sticker/text doesn't go outside the canvas
+                newX = Math.max(0, Math.min(newX, canvasBounds.width - element.offsetWidth));
+                newY = Math.max(0, Math.min(newY, canvasBounds.height - element.offsetHeight));
+
+                element.style.left = newX + 'px';
+                element.style.top = newY + 'px';
+            };
+
+            document.ontouchend = function() {
+                document.ontouchmove = null;
+                document.ontouchend = null;
+            };
+        };
+
+        element.ondblclick = function() {
+            element.remove();
+        };
+    }
+document.getElementById('toggle-instructions').onclick = function() {
+    var box = document.getElementById('instructions');
+    if(box.style.display === 'none' || box.style.display === '') {
+        box.style.display = 'block';
+        this.textContent = "⬆️ Hide Instructions";
+    } else {
+        box.style.display = 'none';
+        this.textContent = "❔ Instructions";
+    }
+};
+    function exportPageAsPNG() {
+        html2canvas(document.querySelector("#canvasContainer")).then(canvas => {
+            const link = document.createElement('a');
+            link.download = 'page_' + (currentPageIndex + 1) + '.png';
+            link.href = canvas.toDataURL();
+            link.click();
+        });
+    }
+
+    updatePageIndicator();
+</script>
+
+</body>
+</html>
